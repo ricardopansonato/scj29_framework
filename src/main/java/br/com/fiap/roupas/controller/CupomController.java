@@ -69,6 +69,10 @@ public class CupomController {
 		ClassPathResource path = new ClassPathResource("downloads/");
 		File file = new File(path.getPath() + orderId + ".pdf");
 		
+		if (!file.exists()) {
+			return ResponseEntity.notFound().build();
+		}
+		
 		InputStream stream = new FileInputStream(file);
 		InputStreamResource inputStreamResource = new InputStreamResource(stream);
 

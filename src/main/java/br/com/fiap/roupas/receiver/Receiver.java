@@ -1,16 +1,20 @@
 package br.com.fiap.roupas.receiver;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.text.SimpleDateFormat;
 
+import org.apache.commons.io.FileUtils;
+import org.apache.tomcat.util.codec.binary.Base64;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.jms.annotation.JmsListener;
+import org.springframework.jms.core.JmsTemplate;
 import org.springframework.stereotype.Component;
 
 import com.itextpdf.text.Document;
@@ -21,6 +25,7 @@ import com.itextpdf.text.pdf.PdfWriter;
 import br.com.fiap.roupas.model.Pedido;
 import br.com.fiap.roupas.model.PedidoItem;
 import br.com.fiap.roupas.repository.PedidoRepository;
+import br.com.fiap.roupas.vo.FileMessage;
 import br.com.fiap.roupas.vo.Message;
 
 @Component
@@ -28,9 +33,12 @@ public class Receiver {
 
 	@Autowired
 	private PedidoRepository repository;
+
+	@Autowired
+	private JmsTemplate jmsTemplate;
 	
-    @JmsListener(destination = "cupom", containerFactory = "myFactory")
-    public void receiveMessage(Message message) throws FileNotFoundException, DocumentException, NoSuchAlgorithmException {
+	@JmsListener(destination = "cupom", containerFactory = "myFactory")
+    public void receiveMessage(Message message) throws DocumentException, NoSuchAlgorithmException, IOException {
     	Pedido pedido = repository.findById(message.getOrderId()).get();
 		Document document = new Document();
 
@@ -65,8 +73,14 @@ public class Receiver {
 		document.add(new Paragraph("Hash: " + result));
 
 		document.close();
-		
-		System.out.println("Gerado com sucesso!!!!");
+
+		FileMessage fileMessage = new FileMessage(encodeFileToBase64Binary(file));
+        jmsTemplate.convertAndSend("file", fileMessage);
     }
+	
+	private static String encodeFileToBase64Binary(File file) throws IOException {
+	    byte[] encoded = Base64.encodeBase64(FileUtils.readFileToByteArray(file));
+	    return new String(encoded, StandardCharsets.US_ASCII);
+	}
 
 }
